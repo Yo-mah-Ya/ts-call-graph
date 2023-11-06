@@ -1,8 +1,8 @@
-# ts-call-graph
+# ts-source-visualizer
 
-Automatically generate call graphs using TypeScript language service.
+Automatically generate graphs from source code written in TypeScript/JavaScript using TypeScript language service and its AST.
 
-### How to execute
+## How to generate call graph
 
 - example
 

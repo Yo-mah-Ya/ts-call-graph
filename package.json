@@ -1,7 +1,7 @@
 {
-  "name": "ts-call-graph",
+  "name": "ts-source-visualizer",
   "version": "0.0.1",
-  "description": "ts-call-graph",
+  "description": "ts-source-visualizer",
   "author": "yoshinari-yamanaka",
   "license": "MIT",
   "private": false,
@@ -15,7 +15,7 @@
     "url": ""
   },
   "keywords": [
-    "ts-call-graph",
+    "ts-source-visualizer",
     "call graph",
     "call-graph",
     "typescript"
