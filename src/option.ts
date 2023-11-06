@@ -105,8 +105,12 @@ export const toOptions = (): Option => {
     .help().argv as Omit<Option, "entry"> & { _: string[] };
   const option: Option = {
     format: argv.format,
-    outDir: argv.outDir,
-    rootDir: argv.rootDir,
+    outDir: argv.outDir.endsWith(path.sep)
+      ? argv.outDir
+      : `${argv.outDir}${path.sep}`,
+    rootDir: argv.rootDir.endsWith(path.sep)
+      ? argv.rootDir
+      : `${argv.rootDir}${path.sep}`,
     entry: lstatSync(argv._[0]).isDirectory()
       ? getRootFileNames(argv._[0])
       : [argv._[0]],

@@ -25,12 +25,12 @@ const graphviz = async ({
   outputFile,
   outDir,
 }: Option & { body: string; outputFile: string }): Promise<void> => {
-  await mkdir(outDir, { recursive: true });
-  await writeFile(`${outDir}${path.sep}${outputFile}.dot`, body);
+  await mkdir(`${outDir}${path.dirname(outputFile)}`, { recursive: true });
+  await writeFile(`${outDir}${outputFile}.dot`, body);
   await promisify(exec)(
-    `${process.platform === "win32" ? "dot.exe" : "dot"} -T${format} ${outDir}${
-      path.sep
-    }${outputFile}.dot -o ${outDir}${path.sep}${outputFile}.${format}`,
+    `${
+      process.platform === "win32" ? "dot.exe" : "dot"
+    } -T${format} ${outDir}${outputFile}.dot -o ${outDir}${outputFile}.${format}`,
   );
 };
 
@@ -170,10 +170,9 @@ export const callHierarchyToGraphviz = async (
   if (body === "") return;
   await graphviz({
     ...option,
-    outputFile: `${callSite.fileName
-      .replace(`${option.rootDir}${path.sep}`, "")
-      .split(path.sep)
-      .join(":")}#${callSite.calledFunction}:${callSite.realPosition.line}`,
+    outputFile: `${callSite.fileName.replace(option.rootDir, "")}#${
+      callSite.calledFunction
+    }:${callSite.realPosition.line}`,
     body: baseGraphWith(body),
   });
 };
