@@ -55,13 +55,22 @@ const callHierarchyToDotNodeLabel = (
       }"`
     : `"${ch.calledFunction}:${ch.realPosition.line}"`;
 
-const isIncludeDeclaration = (
+const isOutputTarget = (
   node: CallHierarchyItemWithChildren,
   option: Option,
-): boolean =>
-  node.kindModifiers !== ts.ScriptElementKindModifier.ambientModifier ||
-  (node.kindModifiers === ts.ScriptElementKindModifier.ambientModifier &&
-    option.declaration);
+): boolean => {
+  switch (node.kind) {
+    case ts.ScriptElementKind.memberFunctionElement:
+    case ts.ScriptElementKind.functionElement:
+    case ts.ScriptElementKind.localFunctionElement:
+      return (
+        node.kindModifiers !== ts.ScriptElementKindModifier.ambientModifier ||
+        (node.kindModifiers === ts.ScriptElementKindModifier.ambientModifier &&
+          option.declaration)
+      );
+  }
+  return false;
+};
 
 function callsToString(
   callSite: CallSite,
@@ -78,22 +87,17 @@ function callsToString(
   }
 
   const dotNodeName = callHierarchyToDotNodeName(callSite, option);
-  switch (item.kind) {
-    case ts.ScriptElementKind.memberFunctionElement:
-    case ts.ScriptElementKind.functionElement:
-    case ts.ScriptElementKind.localFunctionElement:
-      if (isIncludeDeclaration(item, option)) {
-        subgraphGroupedByFiles
-          .get(dotSubgraphName)
-          ?.push(
-            `${dotNodeName} [shape="oval", label=${callHierarchyToDotNodeLabel(
-              callSite,
-            )}]`,
-          );
-        callHierarchyRelations.push(
-          `${dotNodeName} -> ${callHierarchyToDotNodeName(item, option)};`,
-        );
-      }
+  if (isOutputTarget(item, option)) {
+    subgraphGroupedByFiles
+      .get(dotSubgraphName)
+      ?.push(
+        `${dotNodeName} [shape="oval", label=${callHierarchyToDotNodeLabel(
+          callSite,
+        )}]`,
+      );
+    callHierarchyRelations.push(
+      `${dotNodeName} -> ${callHierarchyToDotNodeName(item, option)};`,
+    );
   }
 
   // Walk through children with depth first search
@@ -107,34 +111,22 @@ function callsToString(
     }
 
     const dotNodeName = callHierarchyToDotNodeName(parentNode, option);
-    switch (parentNode.kind) {
-      case ts.ScriptElementKind.memberFunctionElement:
-      case ts.ScriptElementKind.functionElement:
-      case ts.ScriptElementKind.localFunctionElement:
-        if (isIncludeDeclaration(parentNode, option)) {
-          subgraphGroupedByFiles
-            .get(dotSubgraphName)
-            ?.push(
-              `${dotNodeName} [shape="oval", label=${callHierarchyToDotNodeLabel(
-                parentNode,
-              )}]`,
-            );
-        }
+    if (isOutputTarget(parentNode, option)) {
+      subgraphGroupedByFiles
+        .get(dotSubgraphName)
+        ?.push(
+          `${dotNodeName} [shape="oval", label=${callHierarchyToDotNodeLabel(
+            parentNode,
+          )}]`,
+        );
     }
 
     // draw the relationship between call site and callee.
     if (parentNode?.children) {
       for (const child of parentNode.children) {
         const childNodeName = callHierarchyToDotNodeName(child, option);
-        switch (child.kind) {
-          case ts.ScriptElementKind.memberFunctionElement:
-          case ts.ScriptElementKind.functionElement:
-          case ts.ScriptElementKind.localFunctionElement:
-            if (isIncludeDeclaration(child, option)) {
-              callHierarchyRelations.push(
-                `${dotNodeName} -> ${childNodeName};`,
-              );
-            }
+        if (isOutputTarget(child, option)) {
+          callHierarchyRelations.push(`${dotNodeName} -> ${childNodeName};`);
         }
       }
       for (let i = parentNode.children.length - 1; i >= 0; i--) {

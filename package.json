@@ -12,7 +12,7 @@
     "ts-call-graph": "./build/src/index.js"
   },
   "repository": {
-    "url": ""
+    "url": "https://github.com/Yo-mah-Ya/ts-source-visualizer/tree/main"
   },
   "keywords": [
     "ts-source-visualizer",

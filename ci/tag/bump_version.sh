@@ -15,4 +15,10 @@ fi
 new_version_number=$(. increment_version.sh -p ${current_version_number})
 new_version="v${new_version_number}"
 
-echo ${new_version}
+git tag -a ${new_version} -m ${new_version}
+jq --arg version ${new_version_number} '. += {"version": $version}' ${SOURCE_DIR}/../../package.json
+tmp=$(mktemp)
+jq --arg version ${new_version_number} \
+	'. += {"version": $version}' \
+	${SOURCE_DIR}/../../package.json > "$tmp" \
+	&& mv "$tmp" ${SOURCE_DIR}/../../package.json
