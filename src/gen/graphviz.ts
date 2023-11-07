@@ -39,10 +39,10 @@ const callHierarchyToDotNodeName = (
   option: Option,
 ): string =>
   "range" in ch
-    ? `"${ch.file.replace(`${option.rootDir}/`, "")}:${ch.name}:${
+    ? `"${ch.file.replace(option.rootDir, "")}:${ch.name}:${
         ch.selectionRange.line
       }"`
-    : `"${ch.fileName.replace(`${option.rootDir}/`, "")}:${ch.calledFunction}:${
+    : `"${ch.fileName.replace(option.rootDir, "")}:${ch.calledFunction}:${
         ch.realPosition.line
       }"`;
 
@@ -151,7 +151,7 @@ function callsToString(
   for (const [absoluteFilePath, nodes] of subgraphGroupedByFiles.entries()) {
     subgraphs.push(`\tsubgraph "cluster_${absoluteFilePath}" {`);
     subgraphs.push(
-      `\t\tlabel = "${absoluteFilePath.replace(`${option.rootDir}/`, "")}"`,
+      `\t\tlabel = "${absoluteFilePath.replace(option.rootDir, "")}"`,
     );
     if (nodes.length) subgraphs.push("\t\t" + nodes.join(EOL + "\t\t"));
     subgraphs.push("\t};");

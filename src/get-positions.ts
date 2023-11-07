@@ -81,39 +81,45 @@ const getCallSiteFromExpression = (
       originalPosition,
       realPosition,
     };
-  } else {
-    console.log(ts.SyntaxKind[node.expression.kind]);
-    return undefined;
   }
+  return undefined;
 };
 
 function extractFunctionCalls(
-  node: ts.Node,
   sourceFile: ts.SourceFile,
   callSites: CallSite[],
   option: Option,
 ): void {
-  if (ts.isCallExpression(node)) {
-    const callSite = getCallSiteFromExpression(node, sourceFile);
-    if (callSite) {
-      if (
-        option.line == undefined ||
-        (typeof option.line === "number" &&
-          option.line === callSite.realPosition.line)
-      ) {
-        callSites.push({
-          fileName: sourceFile.fileName,
-          calledFunction: callSite.calledFunction,
-          originalPosition: callSite.originalPosition,
-          realPosition: callSite.realPosition,
-        });
+  if (!sourceFile.getChildCount()) return;
+
+  const stacks: ts.Node[] = [sourceFile.getChildAt(0)];
+
+  while (stacks.length) {
+    const node = stacks.pop() as ts.Node;
+
+    if (ts.isCallExpression(node)) {
+      const callSite = getCallSiteFromExpression(node, sourceFile);
+      if (callSite) {
+        if (
+          option.line == undefined ||
+          (typeof option.line === "number" &&
+            option.line === callSite.realPosition.line)
+        ) {
+          callSites.push({
+            fileName: sourceFile.fileName,
+            calledFunction: callSite.calledFunction,
+            originalPosition: callSite.originalPosition,
+            realPosition: callSite.realPosition,
+          });
+        }
       }
     }
-  }
 
-  node.forEachChild((child) =>
-    extractFunctionCalls(child, sourceFile, callSites, option),
-  );
+    const children = node.getChildren(sourceFile);
+    for (let i = children.length - 1; i >= 0; i--) {
+      stacks.push(children[i]);
+    }
+  }
 }
 
 export const compile = (
@@ -127,15 +133,9 @@ export const compile = (
     .filter((f) => !f.isDeclarationFile);
 
   const callSites: CallSite[] = [];
-  const rootNodes: ts.Node[] = [];
 
   for (const sourceFile of sourceFiles) {
-    sourceFile.forEachChild((child: ts.Node) => {
-      rootNodes.push(child);
-    });
-    rootNodes.forEach((node) => {
-      extractFunctionCalls(node, sourceFile, callSites, option);
-    });
+    extractFunctionCalls(sourceFile, callSites, option);
   }
 
   return callSites;
