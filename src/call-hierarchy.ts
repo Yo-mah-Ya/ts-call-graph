@@ -38,7 +38,7 @@ export class CallHierarchy {
     if (this.option.verbose) {
       if (item == undefined) {
         console.info(
-          `The return value of prepareCallHierarchy was undefined:${EOL}\t${this.callSite.fileName}, pos: ${this.callSite.realPosition.line}`,
+          `The return value of ${method} was undefined:${EOL}\t${location.fileName}, pos: ${location.pos}`,
         );
       }
       // When a program might jump to multiple locations, which are most likely declaration files.
@@ -59,15 +59,23 @@ export class CallHierarchy {
   };
 
   private prepareCallHierarchy = (): ts.CallHierarchyItem | undefined => {
-    const res = this.service.prepareCallHierarchy(
-      this.callSite.fileName,
-      this.callSite.realPosition.pos,
-    );
-    this.logOutIf(res, "prepareCallHierarchy", {
-      fileName: this.callSite.fileName,
-      pos: this.callSite.realPosition.pos,
-    });
-    return Array.isArray(res) ? res[0] : res;
+    try {
+      const res = this.service.prepareCallHierarchy(
+        this.callSite.fileName,
+        this.callSite.realPosition.pos,
+      );
+      this.logOutIf(res, "prepareCallHierarchy", {
+        fileName: this.callSite.fileName,
+        pos: this.callSite.realPosition.pos,
+      });
+      return Array.isArray(res) ? res[0] : res;
+    } catch (error) {
+      console.error({
+        callSite: this.callSite,
+        error,
+      });
+      return undefined;
+    }
   };
 
   private toCallHierarchyItemWithChildren = (
@@ -96,29 +104,52 @@ export class CallHierarchy {
 
   private getIncomingCalls = (
     item: ts.CallHierarchyItem,
-  ): CallHierarchyItemWithChildren => {
-    const incomingCalls = this.service.provideCallHierarchyIncomingCalls(
-      item.file,
-      item.selectionSpan.start,
-    );
-    this.logOutIf(incomingCalls, "provideCallHierarchyIncomingCalls", {
-      fileName: item.file,
-      pos: item.selectionSpan.start,
-    });
-    const children = (incomingCalls ?? []).map((incomingCall) =>
-      this.getIncomingCalls(incomingCall.from),
-    );
+  ): CallHierarchyItemWithChildren | undefined => {
+    let result: CallHierarchyItemWithChildren | undefined = undefined;
 
-    const sourceFile = this.getSourceFile(item.file);
-    const selectionRange = sourceFile.getLineAndCharacterOfPosition(
-      item.selectionSpan.start,
-    );
-    const range = sourceFile.getLineAndCharacterOfPosition(item.span.start);
-    return this.toCallHierarchyItemWithChildren(
-      item,
-      { range, selectionRange },
-      children,
-    );
+    const innerGetIncomingCalls = (
+      item: ts.CallHierarchyItem,
+    ): CallHierarchyItemWithChildren => {
+      const incomingCalls = this.service.provideCallHierarchyIncomingCalls(
+        item.file,
+        item.selectionSpan.start,
+      );
+      this.logOutIf(incomingCalls, "provideCallHierarchyIncomingCalls", {
+        fileName: item.file,
+        pos: item.selectionSpan.start,
+      });
+      const children = incomingCalls.map((incomingCall) =>
+        innerGetIncomingCalls(incomingCall.from),
+      );
+
+      const sourceFile = this.getSourceFile(item.file);
+      const selectionRange = sourceFile.getLineAndCharacterOfPosition(
+        item.selectionSpan.start,
+      );
+      const range = sourceFile.getLineAndCharacterOfPosition(item.span.start);
+      result = this.toCallHierarchyItemWithChildren(
+        item,
+        { range, selectionRange },
+        children,
+      );
+      return result;
+    };
+
+    try {
+      return innerGetIncomingCalls(item);
+    } catch (error) {
+      console.error({
+        incomingCallsItem: item,
+        error,
+      });
+      if (
+        error instanceof RangeError &&
+        error.message === "Maximum call stack size exceeded"
+      ) {
+        return result;
+      }
+      return undefined;
+    }
   };
   public getIncomingCallHierarchy = ():
     | CallHierarchyItemWithChildren
@@ -130,29 +161,52 @@ export class CallHierarchy {
 
   private getOutgoingCalls = (
     item: ts.CallHierarchyItem,
-  ): CallHierarchyItemWithChildren => {
-    const outgoingCalls = this.service.provideCallHierarchyOutgoingCalls(
-      item.file,
-      item.selectionSpan.start,
-    );
-    this.logOutIf(outgoingCalls, "provideCallHierarchyOutgoingCalls", {
-      fileName: item.file,
-      pos: item.selectionSpan.start,
-    });
-    const children = (outgoingCalls ?? []).map((outgoingCall) =>
-      this.getOutgoingCalls(outgoingCall.to),
-    );
+  ): CallHierarchyItemWithChildren | undefined => {
+    let result: CallHierarchyItemWithChildren | undefined = undefined;
 
-    const sourceFile = this.getSourceFile(item.file);
-    const selectionRange = sourceFile.getLineAndCharacterOfPosition(
-      item.selectionSpan.start,
-    );
-    const range = sourceFile.getLineAndCharacterOfPosition(item.span.start);
-    return this.toCallHierarchyItemWithChildren(
-      item,
-      { range, selectionRange },
-      children,
-    );
+    const innerGetOutgoingCalls = (
+      item: ts.CallHierarchyItem,
+    ): CallHierarchyItemWithChildren => {
+      const outgoingCalls = this.service.provideCallHierarchyOutgoingCalls(
+        item.file,
+        item.selectionSpan.start,
+      );
+      this.logOutIf(outgoingCalls, "provideCallHierarchyOutgoingCalls", {
+        fileName: item.file,
+        pos: item.selectionSpan.start,
+      });
+      const children = outgoingCalls.map((outgoingCall) =>
+        innerGetOutgoingCalls(outgoingCall.to),
+      );
+
+      const sourceFile = this.getSourceFile(item.file);
+      const selectionRange = sourceFile.getLineAndCharacterOfPosition(
+        item.selectionSpan.start,
+      );
+      const range = sourceFile.getLineAndCharacterOfPosition(item.span.start);
+      result = this.toCallHierarchyItemWithChildren(
+        item,
+        { range, selectionRange },
+        children,
+      );
+      return result;
+    };
+
+    try {
+      return innerGetOutgoingCalls(item);
+    } catch (error) {
+      console.error({
+        outGoingCallsItem: item,
+        error,
+      });
+      if (
+        error instanceof RangeError &&
+        error.message === "Maximum call stack size exceeded"
+      ) {
+        return result;
+      }
+      return undefined;
+    }
   };
   public getOutgoingCallHierarchy = ():
     | CallHierarchyItemWithChildren
