@@ -18,6 +18,10 @@ export type CallHierarchyItemWithChildren = Pick<
   children: CallHierarchyItemWithChildren[];
 };
 
+const isStackOverflow = (error: unknown): boolean =>
+  error instanceof RangeError &&
+  error.message === "Maximum call stack size exceeded";
+
 /**
  * TypeScript language service API walk through each AST nodes recursively.
  * So when stack overflow happens, we'll just get as much call graphs as possible.
@@ -146,10 +150,7 @@ export class CallHierarchy {
         incomingCallsItem: item,
         error,
       });
-      if (
-        error instanceof RangeError &&
-        error.message === "Maximum call stack size exceeded"
-      ) {
+      if (isStackOverflow(error)) {
         return result;
       }
       return undefined;
@@ -203,10 +204,7 @@ export class CallHierarchy {
         outGoingCallsItem: item,
         error,
       });
-      if (
-        error instanceof RangeError &&
-        error.message === "Maximum call stack size exceeded"
-      ) {
+      if (isStackOverflow(error)) {
         return result;
       }
       return undefined;

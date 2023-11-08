@@ -1,6 +1,6 @@
 {
   "name": "ts-source-visualizer",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "ts-source-visualizer",
   "author": "yoshinari-yamanaka",
   "license": "MIT",
@@ -21,7 +21,7 @@
     "typescript"
   ],
   "scripts": {
-    "build": "tsc -b",
+    "build": "tsc -b && chmod 700 build/src/index.js",
     "test": "jest --coverage --passWithNoTests --maxWorkers=7",
     "lint": "yarn eslint && yarn prettier",
     "eslint": "eslint --fix './**/*.{ts,tsx}'",
