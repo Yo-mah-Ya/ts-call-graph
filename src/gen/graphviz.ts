@@ -30,7 +30,7 @@ const graphviz = async ({
   await promisify(exec)(
     `${
       process.platform === "win32" ? "dot.exe" : "dot"
-    } -T${format} ${outDir}${outputFile}.dot -o ${outDir}${outputFile}.${format}`,
+    } -T${format} "${outDir}${outputFile}.dot" -o "${outDir}${outputFile}.${format}"`,
   );
 };
 
