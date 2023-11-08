@@ -92,7 +92,7 @@ function extractFunctionCalls(
 ): void {
   if (!sourceFile.getChildCount()) return;
 
-  const stacks: ts.Node[] = [sourceFile.getChildAt(0)];
+  const stacks: ts.Node[] = sourceFile.getChildren();
 
   while (stacks.length) {
     const node = stacks.pop() as ts.Node;

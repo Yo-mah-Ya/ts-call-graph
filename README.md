@@ -2,6 +2,8 @@
 
 Automatically generate graphs from source code written in TypeScript/JavaScript using TypeScript language service and its AST.
 
+Sample images are in `example` directory.
+
 ## How to generate call graph
 
 - example

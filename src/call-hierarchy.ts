@@ -18,6 +18,10 @@ export type CallHierarchyItemWithChildren = Pick<
   children: CallHierarchyItemWithChildren[];
 };
 
+/**
+ * TypeScript language service API walk through each AST nodes recursively.
+ * So when stack overflow happens, we'll just get as much call graphs as possible.
+ */
 export class CallHierarchy {
   constructor(
     private service: ts.LanguageService,
