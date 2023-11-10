@@ -1,7 +1,7 @@
 {
-  "name": "ts-source-visualizer",
+  "name": "ts-call-graph",
   "version": "0.0.2",
-  "description": "ts-source-visualizer",
+  "description": "ts-call-graph",
   "author": "yoshinari-yamanaka",
   "license": "MIT",
   "private": false,
@@ -12,10 +12,10 @@
     "ts-call-graph": "./build/src/index.js"
   },
   "repository": {
-    "url": "https://github.com/Yo-mah-Ya/ts-source-visualizer/tree/main"
+    "url": "https://github.com/Yo-mah-Ya/ts-call-graph"
   },
   "keywords": [
-    "ts-source-visualizer",
+    "ts-call-graph",
     "call graph",
     "call-graph",
     "typescript"
@@ -25,8 +25,7 @@
     "test": "jest --coverage --passWithNoTests --maxWorkers=7",
     "lint": "yarn eslint && yarn prettier",
     "eslint": "eslint --fix './**/*.{ts,tsx}'",
-    "prettier": "prettier --write './**/*.{ts,js,md}'",
-    "ts-node": "ts-node"
+    "prettier": "prettier --write './**/*.{ts,js,md}'"
   },
   "devDependencies": {
     "@types/jest": "^29.5.6",
