@@ -10,11 +10,11 @@ import path from "path";
 
 const baseGraphWith = (body: string): string => `
 digraph {
-  graph [
-    charset = "UTF-8",
-    rankdir = LR,
-    compound = true
-  ];
+    graph [
+        charset = "UTF-8",
+        rankdir = LR,
+        compound = true
+    ];
   ${body}
 }
 `;
@@ -54,6 +54,13 @@ const callHierarchyToDotNodeLabel = (
         ch.selectionRange.line
       }"`
     : `"${ch.calledFunction}:${ch.realPosition.line}"`;
+
+const isNodeModules = (file: string): boolean => file.includes("node_modules");
+
+const isStdLib = (file: string): boolean =>
+  ["node_modules/@types/node", "node_modules/typescript/lib"].some((dir) =>
+    file.includes(dir),
+  );
 
 const isOutputTarget = (
   node: CallHierarchyItemWithChildren,
@@ -144,7 +151,13 @@ function callsToString(
     subgraphs.push(`\tsubgraph "cluster_${absoluteFilePath}" {`);
     subgraphs.push(
       `\t\tlabel = "${absoluteFilePath.replace(option.rootDir, "")}"`,
+      `\t\thref = "${absoluteFilePath}"`,
     );
+    if (isStdLib(absoluteFilePath)) {
+      subgraphs.push(`\t\tbgcolor = "#adedad"`);
+    } else if (isNodeModules(absoluteFilePath)) {
+      subgraphs.push(`\t\tbgcolor = "#e6ecfa"`);
+    }
     if (nodes.length) subgraphs.push("\t\t" + nodes.join(EOL + "\t\t"));
     subgraphs.push("\t};");
   }
