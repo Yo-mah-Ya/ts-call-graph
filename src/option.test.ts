@@ -19,6 +19,7 @@ describe("call-graph", () => {
       expect(option.toOptions()).toStrictEqual({
         entry: [`${__dirname}${path.sep}option.ts`],
         rootDir: __dirname,
+        verbose: false,
       });
     });
     test("directory", () => {
