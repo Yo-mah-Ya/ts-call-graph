@@ -1,7 +1,7 @@
 import * as ts from "typescript";
-import { CallSite } from "./get-positions";
+import { CallSite } from "./call-sites";
 import { EOL } from "os";
-import { Option } from "./option";
+import { Option } from "../option";
 
 export type CallHierarchyItemWithChildren = Pick<
   ts.CallHierarchyItem,

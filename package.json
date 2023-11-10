@@ -22,11 +22,13 @@
   ],
   "scripts": {
     "build": "tsc -b && chmod 700 build/src/index.js",
+    "gen": "./build/src/index.js --config ts-source-visualizer.json",
     "test": "jest --coverage --passWithNoTests --maxWorkers=7",
     "lint": "yarn eslint && yarn prettier",
     "eslint": "eslint --fix './**/*.{ts,tsx}'",
     "prettier": "prettier --write './**/*.{ts,js,md}'",
-    "ts-node": "ts-node"
+    "ts-node": "ts-node",
+    "ts-call-graph": "ts-call-graph"
   },
   "devDependencies": {
     "@types/jest": "^29.5.6",
@@ -41,6 +43,8 @@
     "ts-node": "^10.9.1"
   },
   "dependencies": {
+    "fp-ts": "^2.16.1",
+    "io-ts": "^2.2.20",
     "typescript": "^5.2.2"
   }
 }

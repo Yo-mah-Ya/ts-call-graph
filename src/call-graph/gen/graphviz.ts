@@ -2,35 +2,40 @@ import { exec } from "child_process";
 import { promisify } from "util";
 import type { CallHierarchyItemWithChildren } from "../call-hierarchy";
 import { EOL } from "os";
-import type { CallSite } from "../get-positions";
+import type { CallSite } from "../call-sites";
 import { mkdir, writeFile } from "fs/promises";
 import ts from "typescript";
-import { Option } from "../option";
+import type { CallGraphOption, Option } from "../../option";
 import path from "path";
 
 const baseGraphWith = (body: string): string => `
 digraph {
-  graph [
-    charset = "UTF-8",
-    rankdir = LR,
-    compound = true
-  ];
+    graph [
+        charset = "UTF-8",
+        rankdir = LR,
+        compound = true
+    ];
   ${body}
 }
 `;
 
 const graphviz = async ({
-  format,
-  body,
-  outputFile,
   outDir,
-}: Option & { body: string; outputFile: string }): Promise<void> => {
+  outputFile,
+  body,
+  callGraph,
+}: Option & { callGraph: CallGraphOption } & {
+  body: string;
+  outputFile: string;
+}): Promise<void> => {
   await mkdir(`${outDir}${path.dirname(outputFile)}`, { recursive: true });
   await writeFile(`${outDir}${outputFile}.dot`, body);
   await promisify(exec)(
-    `${
-      process.platform === "win32" ? "dot.exe" : "dot"
-    } -T${format} "${outDir}${outputFile}.dot" -o "${outDir}${outputFile}.${format}"`,
+    `${process.platform === "win32" ? "dot.exe" : "dot"} -T${
+      callGraph.format
+    } "${outDir}${outputFile}.dot" -o "${outDir}${outputFile}.${
+      callGraph.format
+    }"`,
   );
 };
 
@@ -55,6 +60,9 @@ const callHierarchyToDotNodeLabel = (
       }"`
     : `"${ch.calledFunction}:${ch.realPosition.line}"`;
 
+const isNodeModules = (file: string): boolean =>
+  path.dirname(file).includes("node_modules");
+
 const isOutputTarget = (
   node: CallHierarchyItemWithChildren,
   option: Option,
@@ -66,7 +74,8 @@ const isOutputTarget = (
       return (
         node.kindModifiers !== ts.ScriptElementKindModifier.ambientModifier ||
         (node.kindModifiers === ts.ScriptElementKindModifier.ambientModifier &&
-          option.declaration)
+          option.callGraph != undefined &&
+          option.callGraph.declaration)
       );
   }
   return false;
@@ -145,6 +154,9 @@ function callsToString(
     subgraphs.push(
       `\t\tlabel = "${absoluteFilePath.replace(option.rootDir, "")}"`,
     );
+    if (isNodeModules(absoluteFilePath)) {
+      subgraphs.push(`\t\tbgcolor = "#e6ecfa"`);
+    }
     if (nodes.length) subgraphs.push("\t\t" + nodes.join(EOL + "\t\t"));
     subgraphs.push("\t};");
   }
@@ -156,7 +168,7 @@ function callsToString(
 export const callHierarchyToGraphviz = async (
   callSite: CallSite,
   ch: CallHierarchyItemWithChildren,
-  option: Option,
+  option: Option & { callGraph: CallGraphOption },
 ): Promise<void> => {
   const body = callsToString(callSite, ch, option);
   if (body === "") return;

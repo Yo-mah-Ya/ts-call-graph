@@ -1,5 +1,5 @@
 import ts from "typescript";
-import { Option } from "./option";
+import { Option } from "../option";
 
 type Position = {
   line: number;
@@ -101,9 +101,9 @@ function extractFunctionCalls(
       const callSite = getCallSiteFromExpression(node, sourceFile);
       if (callSite) {
         if (
-          option.line == undefined ||
-          (typeof option.line === "number" &&
-            option.line === callSite.realPosition.line)
+          option?.callGraph?.line == undefined ||
+          (typeof option?.callGraph?.line === "number" &&
+            option?.callGraph?.line === callSite.realPosition.line)
         ) {
           callSites.push({
             fileName: sourceFile.fileName,
