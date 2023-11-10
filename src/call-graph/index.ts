@@ -1,12 +1,13 @@
 import { compile } from "./call-sites";
 import { CallHierarchy } from "./call-hierarchy";
 import { callHierarchyToGraphviz } from "./gen/graphviz";
-import type { CallGraphOption, Option } from "../option";
+import type { Option } from "../option";
+import type { CallGraphConfig } from "../option";
 import ts from "typescript";
 
 export const callGraph = async (
   languageService: ts.LanguageService,
-  option: Option & { callGraph: CallGraphOption },
+  option: Option & { callGraph: CallGraphConfig },
 ): Promise<void> => {
   const callSites = compile(
     option.entry,

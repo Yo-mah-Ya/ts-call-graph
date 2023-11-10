@@ -5,7 +5,7 @@ import { EOL } from "os";
 import type { CallSite } from "../call-sites";
 import { mkdir, writeFile } from "fs/promises";
 import ts from "typescript";
-import type { CallGraphOption, Option } from "../../option";
+import type { CallGraphConfig, Option } from "../../option";
 import path from "path";
 
 const baseGraphWith = (body: string): string => `
@@ -20,22 +20,23 @@ digraph {
 `;
 
 const graphviz = async ({
-  outDir,
   outputFile,
   body,
   callGraph,
-}: Option & { callGraph: CallGraphOption } & {
+}: Option & { callGraph: CallGraphConfig } & {
   body: string;
   outputFile: string;
 }): Promise<void> => {
-  await mkdir(`${outDir}${path.dirname(outputFile)}`, { recursive: true });
-  await writeFile(`${outDir}${outputFile}.dot`, body);
+  await mkdir(`${callGraph.outDir}${path.dirname(outputFile)}`, {
+    recursive: true,
+  });
+  await writeFile(`${callGraph.outDir}${outputFile}.dot`, body);
   await promisify(exec)(
     `${process.platform === "win32" ? "dot.exe" : "dot"} -T${
       callGraph.format
-    } "${outDir}${outputFile}.dot" -o "${outDir}${outputFile}.${
-      callGraph.format
-    }"`,
+    } "${callGraph.outDir}${outputFile}.dot" -o "${
+      callGraph.outDir
+    }${outputFile}.${callGraph.format}"`,
   );
 };
 
@@ -74,7 +75,7 @@ const isOutputTarget = (
       return (
         node.kindModifiers !== ts.ScriptElementKindModifier.ambientModifier ||
         (node.kindModifiers === ts.ScriptElementKindModifier.ambientModifier &&
-          option.callGraph != undefined &&
+          option.callGraph?.declaration != undefined &&
           option.callGraph.declaration)
       );
   }
@@ -168,7 +169,7 @@ function callsToString(
 export const callHierarchyToGraphviz = async (
   callSite: CallSite,
   ch: CallHierarchyItemWithChildren,
-  option: Option & { callGraph: CallGraphOption },
+  option: Option & { callGraph: CallGraphConfig },
 ): Promise<void> => {
   const body = callsToString(callSite, ch, option);
   if (body === "") return;

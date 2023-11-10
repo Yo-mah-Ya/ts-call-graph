@@ -1,5 +1,5 @@
 {
-  "entry": "./test/call-hierarchy/one.ts",
+  "entry": "./test",
   "verbose": true,
   "callGraph": {
     "format": "svg"

@@ -1,16 +1,107 @@
-import { existsSync, lstatSync, readdirSync } from "fs";
+import { existsSync, lstatSync, readFileSync, readdirSync } from "fs";
 import path from "path";
 import yargs from "yargs";
+import * as t from "io-ts";
+import { isRight } from "fp-ts/lib/Either";
+import { PathReporter } from "io-ts/lib/PathReporter";
 
-export type Option = {
-  entry: string[];
-  format: string;
-  outDir: string;
-  rootDir: string;
-  declaration: boolean;
-  verbose: boolean;
-  line?: number;
-};
+const withDefaultDir = (
+  defaultValue: t.TypeOf<t.StringC>,
+): t.Type<string, string, unknown> =>
+  new t.Type<string, string, unknown>(
+    "string",
+    (input: unknown): input is string =>
+      typeof input === "string" && existsSync(input),
+    (input, context) => {
+      if (typeof input === "string") {
+        if (existsSync(input) && lstatSync(input).isDirectory()) {
+          const p = path.resolve(input);
+          return t.success(p.endsWith(path.sep) ? p : `${p}${path.sep}`);
+        }
+        return t.failure(input, context);
+      } else {
+        const p = path.resolve(defaultValue);
+        return t.success(p.endsWith(path.sep) ? p : `${p}${path.sep}`);
+      }
+    },
+    (v) => path.resolve(v),
+  );
+
+export const withDefault = <T extends t.Any>(
+  type: T,
+  defaultValue: t.TypeOf<T>,
+): t.Type<t.TypeOf<T>, t.OutputOf<T>, t.InputOf<T>> =>
+  new t.Type<t.TypeOf<T>, t.OutputOf<T>, t.InputOf<T>>(
+    type.name,
+    type.is,
+    (input, context) => type.validate(input ?? defaultValue, context),
+    t.identity,
+  );
+
+const commonConfig = t.intersection([
+  t.type({
+    entry: new t.Type<string, string, unknown>(
+      "string",
+      (input: unknown): input is string =>
+        typeof input === "string" && existsSync(input),
+      (input, context) => {
+        if (typeof input === "string" && existsSync(input)) {
+          const p = path.resolve(input);
+          return t.success(p);
+        }
+        return t.failure(input, context);
+      },
+      (v) => path.resolve(v),
+    ),
+  }),
+  t.partial({
+    verbose: withDefault(t.boolean, false),
+  }),
+]);
+type CommonConfig = t.TypeOf<typeof commonConfig>;
+
+export const callGraphConfig = t.intersection([
+  t.type({
+    format: t.keyof({
+      jpg: null, // JPEG
+      jpeg: null,
+      jpe: null,
+      jp2: null, // JPEG 2000
+      pdf: null, // PDF
+      png: null, // PNG
+      ps: null, // Adobe PostScript
+      ps2: null, // PS/PDF
+      psd: null, // Photoshop
+      sgi: null, // Silicon Graphics Image
+      svg: null, // SVG
+      svgz: null,
+      webp: null, // WebP
+    }),
+  }),
+  t.partial({
+    declaration: withDefault(t.boolean, false),
+    outDir: withDefaultDir(
+      [process.cwd(), "output", "call-graph"].join(path.sep),
+    ),
+    line: t.number,
+  }),
+]);
+export type CallGraphConfig = t.TypeOf<typeof callGraphConfig>;
+
+const config = t.intersection([
+  commonConfig,
+  t.partial({
+    callGraph: callGraphConfig,
+  }),
+]);
+export type Config = t.TypeOf<typeof config>;
+const isConfig = (value: unknown): t.Validation<Config> => config.decode(value);
+
+export const readConfig = (configPath: string): Record<string, unknown> =>
+  JSON.parse(readFileSync(configPath, { encoding: "utf-8" })) as Record<
+    string,
+    unknown
+  >;
 
 const getRootFileNames = (directory: string): string[] =>
   readdirSync(directory, { recursive: true })
@@ -21,104 +112,43 @@ const getRootFileNames = (directory: string): string[] =>
       ),
     );
 
+export type Option = {
+  entry: string[];
+  rootDir: string;
+  verbose: boolean;
+  callGraph?: CallGraphConfig;
+};
 export const toOptions = (): Option => {
-  const argv = yargs(process.argv.slice(2))
-    .coerce("_", (argv) => {
-      const p = argv as string[];
-      if (!p.length || typeof p[0] !== "string" || !existsSync(p[0])) {
-        throw new Error("should be passed entry file or directory path");
-      }
-
-      return [path.resolve(p[0])];
-    })
-    .check((argv) => {
-      const entry = argv._[0];
-      const typedArgv = argv as unknown as Option;
-
-      if (!entry.includes(typedArgv.rootDir)) {
-        throw new Error(
-          "Entry file or directory is supposed to be a descendant of given directory specified with rootDir",
-        );
-      }
-      return true;
-    })
-    .options("rootDir", {
-      alias: "r",
-      describe:
-        "root directory where we'll recursively walk through source files. Default directory is current working directory.",
-      default: process.cwd(),
-      type: "string",
-    })
-    .option("outDir", {
-      alias: "o",
-      describe: "output directory",
-      default: `${process.cwd()}/output`,
-      type: "string",
-    })
-    .option("format", {
-      alias: "f",
-      describe: "out put format",
-      default: "svg",
-      // https://graphviz.org/docs/outputs/
-      choices: [
-        "jpg", // JPEG
-        "jpeg",
-        "jpe",
-        "jp2", // JPEG 2000
-        "pdf", // PDF
-        "png", // PNG
-        "ps", // Adobe PostScript
-        "ps2", // PS/PDF
-        "psd", // Photoshop
-        "sgi", // Silicon Graphics Image
-        "svg", // SVG
-        "svgz",
-        "webp", // WebP
-      ],
-      type: "string",
-    })
-    .option("declaration", {
-      alias: "d",
-      describe: "is include declaration",
-      default: false,
-      type: "boolean",
-    })
-    .option("verbose", {
-      alias: "v",
-      describe: "Use verbose output",
-      default: false,
-      type: "boolean",
-    })
-    .option("line", {
-      alias: "l",
-      describe: "The line number where call graph starts",
-      default: undefined,
-      coerce: (line) => {
-        if (line == undefined) return undefined;
-        if (Number.isNaN(Number(line))) {
-          throw new Error("--line parameter should be typeof number");
+  const { config } = yargs(process.argv.slice(2))
+    .option("config", {
+      coerce: (configPath) => {
+        if (typeof configPath !== "string") return undefined;
+        if (!existsSync(configPath)) {
+          throw new Error(
+            "existing config path should be passed to --config parameter",
+          );
         }
-        return line as number;
+        const absoluteConfigPath = path.resolve(configPath);
+        if (path.extname(configPath) === ".json") {
+          const result = isConfig(readConfig(absoluteConfigPath));
+          if (isRight(result)) return result.right;
+          throw new Error(JSON.stringify(PathReporter.report(result)));
+        }
+        throw new Error("Unsupported config file extension. It must be json");
       },
-      type: "number",
+      demandOption: true,
+      type: "string",
     })
-    .help().argv as Omit<Option, "entry"> & { _: string[] };
-  const option: Option = {
-    format: argv.format,
-    outDir: argv.outDir.endsWith(path.sep)
-      ? argv.outDir
-      : `${argv.outDir}${path.sep}`,
-    rootDir: argv.rootDir.endsWith(path.sep)
-      ? argv.rootDir
-      : `${argv.rootDir}${path.sep}`,
-    entry: lstatSync(argv._[0]).isDirectory()
-      ? getRootFileNames(argv._[0])
-      : [argv._[0]],
-    declaration: argv.declaration,
-    verbose: argv.verbose,
-    line: argv.line,
+    .help().argv as { config: Config & Required<CommonConfig> } & {
+    _: string[];
   };
-  if (option.verbose) {
+  const option: Option = {
+    ...config,
+    ...(lstatSync(config.entry).isDirectory()
+      ? { entry: getRootFileNames(config.entry), rootDir: config.entry }
+      : { entry: [config.entry], rootDir: path.dirname(config.entry) }),
+  };
+  if (option?.verbose) {
     console.log("passed option");
     console.log(option);
   }
