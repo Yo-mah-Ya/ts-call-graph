@@ -70,11 +70,18 @@ const isOutputTarget = (
     case ts.ScriptElementKind.memberFunctionElement:
     case ts.ScriptElementKind.functionElement:
     case ts.ScriptElementKind.localFunctionElement:
-      return (
-        node.kindModifiers !== ts.ScriptElementKindModifier.ambientModifier ||
-        (node.kindModifiers === ts.ScriptElementKindModifier.ambientModifier &&
-          option.declaration)
-      );
+      if (!node.kindModifiers) return true;
+      /** ScriptElementKindModifier separated by commas, e.g. "public,abstract" */
+      return node.kindModifiers
+        .split(",")
+        .every(
+          (km) =>
+            (km as ts.ScriptElementKindModifier) !==
+              ts.ScriptElementKindModifier.ambientModifier ||
+            ((km as ts.ScriptElementKindModifier) ===
+              ts.ScriptElementKindModifier.ambientModifier &&
+              option.declaration),
+        );
   }
   return false;
 };
