@@ -1,5 +1,7 @@
-import { existsSync, lstatSync, readdirSync } from "fs";
+import { existsSync, lstatSync, readFileSync, readdirSync } from "fs";
+import { EOL } from "os";
 import path from "path";
+import ts from "typescript";
 import yargs from "yargs";
 
 export type Option = {
@@ -10,6 +12,19 @@ export type Option = {
   declaration: boolean;
   verbose: boolean;
   line?: number;
+  compilerOptions?: ts.CompilerOptions;
+};
+
+export const jsonToCompilerOptions = (tsconfig: string): ts.CompilerOptions => {
+  const res = ts.parseJsonConfigFileContent(
+    JSON.parse(readFileSync(tsconfig, { encoding: "utf-8" })) as unknown,
+    ts.sys,
+    path.dirname(tsconfig),
+  );
+  if (res.errors.length) {
+    throw new Error(res.errors.join(EOL));
+  }
+  return res.options;
 };
 
 const getRootFileNames = (directory: string): string[] =>
@@ -53,6 +68,22 @@ export const toOptions = (): Option => {
       alias: "o",
       describe: "output directory",
       default: `${process.cwd()}/output`,
+      type: "string",
+    })
+    .option("tsconfig", {
+      describe: "path to tsconfig.json which is TypeScript transpile config",
+      coerce: (tsconfig) => {
+        if (typeof tsconfig !== "string") return undefined;
+        if (!lstatSync(tsconfig).isFile() || !tsconfig.endsWith(".json")) {
+          throw new Error(
+            "Existing tsconfig json file path should be passed to --tsconfig",
+          );
+        }
+
+        return {
+          compilerOptions: jsonToCompilerOptions(path.resolve(tsconfig)),
+        };
+      },
       type: "string",
     })
     .option("format", {
@@ -102,7 +133,11 @@ export const toOptions = (): Option => {
       },
       type: "number",
     })
-    .help().argv as Omit<Option, "entry"> & { _: string[] };
+    .help().argv as Omit<Option, "entry"> & {
+    _: string[];
+    tsconfig: { compilerOptions: ts.CompilerOptions };
+  };
+
   const option: Option = {
     format: argv.format,
     outDir: argv.outDir.endsWith(path.sep)
@@ -117,6 +152,7 @@ export const toOptions = (): Option => {
     declaration: argv.declaration,
     verbose: argv.verbose,
     line: argv.line,
+    compilerOptions: argv.tsconfig.compilerOptions,
   };
   if (option.verbose) {
     console.log("passed option");
