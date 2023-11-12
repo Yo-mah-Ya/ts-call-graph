@@ -4,6 +4,22 @@ Automatically generate graphs from source code written in TypeScript/JavaScript 
 
 Sample images are in `example` directory.
 
+## example image
+
+When executing below command, the following image will be output.
+
+```sh
+ts-call-graph test/ -d true -f png
+```
+
+![test](output/test/call-hierarchy/one.png)
+
+And other example output images of well-known libraries are under example folders.
+
+[nest](./example/nest/README.md)
+[react-dom](./example/react-dom/README.md)
+[ts-node](./example/ts-node/README.md)
+
 ## install
 
 ```sh
