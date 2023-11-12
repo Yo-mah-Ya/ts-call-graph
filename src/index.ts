@@ -9,7 +9,7 @@ export const main = async (): Promise<void> => {
   const option = toOptions();
   const callSites = compile(
     option.entry,
-    {
+    option.compilerOptions ?? {
       allowJs: true,
       declaration: false,
       declarationMap: false,
@@ -24,14 +24,17 @@ export const main = async (): Promise<void> => {
     return;
   }
 
-  const languageService = createLanguageService(option.entry, {
-    allowJs: true,
-    declaration: false,
-    declarationMap: false,
-    noEmit: true,
-    noEmitOnError: true,
-    sourceMap: false,
-  });
+  const languageService = createLanguageService(
+    option.entry,
+    option.compilerOptions ?? {
+      allowJs: true,
+      declaration: false,
+      declarationMap: false,
+      noEmit: true,
+      noEmitOnError: true,
+      sourceMap: false,
+    },
+  );
   const p: Promise<void>[] = [];
   for (const callSite of callSites) {
     const callHierarchy = new CallHierarchy(

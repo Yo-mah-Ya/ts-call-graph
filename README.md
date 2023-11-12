@@ -1,8 +1,18 @@
+- [ts-call-graph](#ts-call-graph)
+- [prerequisite](#prerequisite)
+- [example image](#example-image)
+- [install](#install)
+- [How to generate call graph](#how-to-generate-call-graph)
+
 # ts-call-graph
 
 Automatically generate graphs from source code written in TypeScript/JavaScript using TypeScript language service and its AST.
 
 Sample images are in `example` directory.
+
+## prerequisite
+
+This package uses [graphviz](https://graphviz.org/download/) to generate call graph. It will converts `.dot` file to particular files like `.svg`, `.png` and whatnot.
 
 ## example image
 
@@ -16,11 +26,23 @@ ts-call-graph test/ -d true -f png
 
 And other example output images of well-known libraries are under example folders.
 
-[nest](./example/nest/README.md)
-[react-dom](./example/react-dom/README.md)
-[ts-node](./example/ts-node/README.md)
+- [nest](./example/nest/README.md)
+- [react-dom](./example/react-dom/README.md)
+- [ts-node](./example/ts-node/README.md)
+
+## background color with graphviz
+
+- standard library which is under `node_modules/@types/node` and `node_modules/typescript/lib`
+
+  **`#adedad`**
+
+- other packages under `node_modules`
+
+  **`#e6ecfa`**
 
 ## install
+
+[npm](https://www.npmjs.com/package/ts-call-graph)
 
 ```sh
 npm install ts-call-graph --save-dev
@@ -46,6 +68,8 @@ Options:
                                                           "current working directory"]
   -o, --outDir       output directory                         [string] [default:
                                                    "current working directory/output"]
+      --tsconfig     path to tsconfig.json which is TypeScript transpile config
+                                                                        [string]
   -f, --format       out put format
       [string] [choices: "jpg", "jpeg", "jpe", "jp2", "pdf", "png", "ps", "ps2",
                            "psd", "sgi", "svg", "svgz", "webp"] [default: "svg"]
