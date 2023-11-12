@@ -135,7 +135,7 @@ export const toOptions = (): Option => {
     })
     .help().argv as Omit<Option, "entry"> & {
     _: string[];
-    tsconfig: { compilerOptions: ts.CompilerOptions };
+    tsconfig?: { compilerOptions: ts.CompilerOptions };
   };
 
   const option: Option = {
@@ -152,7 +152,7 @@ export const toOptions = (): Option => {
     declaration: argv.declaration,
     verbose: argv.verbose,
     line: argv.line,
-    compilerOptions: argv.tsconfig.compilerOptions,
+    compilerOptions: argv.tsconfig?.compilerOptions,
   };
   if (option.verbose) {
     console.log("passed option");
