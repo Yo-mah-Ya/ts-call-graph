@@ -12,7 +12,7 @@ When executing below command, the following image will be output.
 ts-call-graph test/ -d true -f png
 ```
 
-![test](output/test/call-hierarchy/one.png)
+![test](example/test/call-hierarchy/one.png)
 
 And other example output images of well-known libraries are under example folders.
 
