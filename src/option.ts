@@ -3,6 +3,7 @@ import { EOL } from "os";
 import path from "path";
 import ts from "typescript";
 import yargs from "yargs";
+import { omitCommentsFromJson } from "./misc";
 
 export type Option = {
   entry: string[];
@@ -17,7 +18,9 @@ export type Option = {
 
 export const jsonToCompilerOptions = (tsconfig: string): ts.CompilerOptions => {
   const res = ts.parseJsonConfigFileContent(
-    JSON.parse(readFileSync(tsconfig, { encoding: "utf-8" })) as unknown,
+    JSON.parse(
+      omitCommentsFromJson(readFileSync(tsconfig, { encoding: "utf-8" })),
+    ) as unknown,
     ts.sys,
     path.dirname(tsconfig),
   );

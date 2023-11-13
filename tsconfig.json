@@ -33,6 +33,7 @@
     "build",
     "example",
     "coverage",
+    "test",
     "./**/*.test.ts",
     "jest.config.js"
   ]
