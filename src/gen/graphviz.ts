@@ -18,19 +18,31 @@ digraph {
 }
 `;
 
-const graphviz = async ({
-  format,
-  body,
-  outputFile,
-  outDir,
-}: Option & { body: string; outputFile: string }): Promise<void> => {
-  await mkdir(`${outDir}${path.dirname(outputFile)}`, { recursive: true });
-  await writeFile(`${outDir}${outputFile}.dot`, body);
+const graphviz = async (
+  ch: CallHierarchyItemWithChildren,
+  option: Option,
+  body: string,
+): Promise<void> => {
+  const outputFile = buildOutPutFilePathWithoutExtension(ch, option);
+
+  await mkdir(`${option.outDir}${path.dirname(outputFile)}`, {
+    recursive: true,
+  });
+  await writeFile(`${option.outDir}${outputFile}.dot`, body);
   await promisify(exec)(
-    `${
-      process.platform === "win32" ? "dot.exe" : "dot"
-    } -T${format} "${outDir}${outputFile}.dot" -o "${outDir}${outputFile}.${format}"`,
+    `${process.platform === "win32" ? "dot.exe" : "dot"} -T${option.format} "${
+      option.outDir
+    }${outputFile}.dot" -o "${option.outDir}${outputFile}.${option.format}"`,
   );
+};
+
+export const buildOutPutFilePathWithoutExtension = (
+  ch: CallHierarchyItemWithChildren,
+  option: Option,
+): string => {
+  return `${ch.file.replace(option.rootDir, "")}#${ch.name}:${
+    ch.selectionRange.line
+  }`;
 };
 
 const callHierarchyToDotNodeName = (
@@ -79,15 +91,27 @@ const isOutputTarget = (
   return false;
 };
 
+export const createBaseUrlPath = (
+  ch: CallHierarchyItemWithChildren,
+  option: Option,
+): string =>
+  encodeURI(
+    `/${ch.file.replace(option.rootDir, "")}/${ch.name}/${
+      ch.selectionRange.line
+    }`,
+  );
+
 export function callsToDotString(
-  item: CallHierarchyItemWithChildren,
+  ch: CallHierarchyItemWithChildren,
   option: Option,
 ): string {
   const subgraphGroupedByFiles: Map<string, string[]> = new Map();
   const callHierarchyRelations: string[] = [];
 
+  const baseUrlPath = createBaseUrlPath(ch, option);
+
   // Walk through children with depth first search
-  const stack: CallHierarchyItemWithChildren[] = [item];
+  const stack: CallHierarchyItemWithChildren[] = [ch];
   while (stack.length) {
     const parentNode = stack.pop() as CallHierarchyItemWithChildren;
 
@@ -98,13 +122,23 @@ export function callsToDotString(
 
     const dotNodeName = callHierarchyToDotNodeName(parentNode, option);
     if (isOutputTarget(parentNode, option)) {
+      const attributes: string[] = [
+        `shape="oval"`,
+        `label=${callHierarchyToDotNodeLabel(parentNode)}`,
+        `${
+          parentNode.hasChildren && !parentNode.children.length
+            ? `color="#3b82f6", penwidth=2.0`
+            : `color="black", penwidth=1.0`
+        }`,
+      ];
+      // Don't dare to try to reach to children, if it doesn't have them.
+      if (option.server && parentNode.hasChildren) {
+        attributes.push(`href="${baseUrlPath}?id=${parentNode.id}"`);
+      }
+
       subgraphGroupedByFiles
         .get(dotSubgraphName)
-        ?.push(
-          `${dotNodeName} [shape="oval", label=${callHierarchyToDotNodeLabel(
-            parentNode,
-          )} class="${parentNode.id}"]`,
-        );
+        ?.push(`${dotNodeName} [${attributes.join(", ")}]`);
     }
 
     // draw the relationship between call site and callee.
@@ -127,7 +161,9 @@ export function callsToDotString(
     subgraphs.push(`\tsubgraph "cluster_${absoluteFilePath}" {`);
     subgraphs.push(
       `\t\tlabel = "${absoluteFilePath.replace(option.rootDir, "")}"`,
-      `\t\thref = "${absoluteFilePath}"`,
+      option.server
+        ? `\t\thref = "${baseUrlPath}?file=${encodeURI(absoluteFilePath)}"`
+        : `\t\thref = "${absoluteFilePath}"`,
     );
     if (isStdLib(absoluteFilePath)) {
       subgraphs.push(`\t\tbgcolor = "#adedad"`);
@@ -148,11 +184,5 @@ export const callHierarchyToGraphviz = async (
 ): Promise<void> => {
   const body = callsToDotString(ch, option);
   if (body === undefined) return;
-  await graphviz({
-    ...option,
-    outputFile: `${ch.file.replace(option.rootDir, "")}#${ch.name}:${
-      ch.selectionRange.line
-    }`,
-    body,
-  });
+  await graphviz(ch, option, body);
 };
