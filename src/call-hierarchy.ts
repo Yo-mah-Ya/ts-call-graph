@@ -19,6 +19,7 @@ export type CallHierarchyItemWithChildren = Pick<
     line: number;
     character: number;
   };
+  hasChildren: boolean; // we might wanna add or remove child nodes, when outputting. As an original info, just let them know if it has children.
   children: CallHierarchyItemWithChildren[];
 };
 
@@ -113,6 +114,7 @@ export class CallHierarchy {
       line: selectionRange.line + 1, // line starts with index 0 with TypeScript Language service API specification
       character: selectionRange.character,
     },
+    hasChildren: !!children.length,
     children,
   });
 
@@ -177,6 +179,7 @@ export class CallHierarchy {
       file: callSite.fileName,
       selectionRange: callSite.realPosition,
       range: callSite.realPosition,
+      hasChildren: true,
       children: [ch],
     };
   };
@@ -242,6 +245,7 @@ export class CallHierarchy {
       file: callSite.fileName,
       selectionRange: callSite.realPosition,
       range: callSite.realPosition,
+      hasChildren: true,
       children: [ch],
     };
   };

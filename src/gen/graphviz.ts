@@ -110,15 +110,26 @@ export function callsToDotString(
 
     const dotNodeName = callHierarchyToDotNodeName(parentNode, option);
     if (isOutputTarget(parentNode, option)) {
+      const attributes: string[] = [
+        `shape="oval"`,
+        `label=${callHierarchyToDotNodeLabel(parentNode)}`,
+        `${
+          parentNode.hasChildren && !parentNode.children.length
+            ? `color="#3b82f6", penwidth=2.0`
+            : `color="black", penwidth=1.0`
+        }`,
+      ];
+      if (
+        // Don't dare to try to reach to children, if it doesn't have them.
+        option.server &&
+        parentNode.hasChildren
+      ) {
+        attributes.push(`href="${baseUrlPath}?id=${parentNode.id}"`);
+      }
+
       subgraphGroupedByFiles
         .get(dotSubgraphName)
-        ?.push(
-          `${dotNodeName} [shape="oval", label=${callHierarchyToDotNodeLabel(
-            parentNode,
-          )} ${
-            option.server ? `href="${baseUrlPath}?id=${parentNode.id}"` : ""
-          }]`,
-        );
+        ?.push(`${dotNodeName} [${attributes.join(", ")}]`);
     }
 
     // draw the relationship between call site and callee.

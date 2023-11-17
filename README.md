@@ -34,15 +34,23 @@ And other example output images of well-known libraries are under example folder
 - [react-dom](./example/react-dom/README.md)
 - [ts-node](./example/ts-node/README.md)
 
-## background color with graphviz
+## color meaning
 
-- standard library which is under `node_modules/@types/node` and `node_modules/typescript/lib`
+- background color
 
-  **`#adedad`**
+  - standard library which is under `node_modules/@types/node` and `node_modules/typescript/lib`
 
-- other packages under `node_modules`
+    **`#adedad`**
 
-  **`#e6ecfa`**
+  - other packages under `node_modules`
+
+    **`#e6ecfa`**
+
+- stroke
+
+  - When a node doesn't have children, even if it has originally holds. For example, when interactive mode, it might remove its children, for sure can be added again.
+
+    **`#3b82f6`**
 
 ## install
 
