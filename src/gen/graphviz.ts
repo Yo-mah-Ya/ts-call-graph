@@ -2,7 +2,6 @@ import { exec } from "child_process";
 import { promisify } from "util";
 import type { CallHierarchyItemWithChildren } from "../call-hierarchy";
 import { EOL } from "os";
-import type { CallSite } from "../get-positions";
 import { mkdir, writeFile } from "fs/promises";
 import ts from "typescript";
 import { Option } from "../option";
@@ -35,25 +34,19 @@ const graphviz = async ({
 };
 
 const callHierarchyToDotNodeName = (
-  ch: CallHierarchyItemWithChildren | CallSite,
+  ch: CallHierarchyItemWithChildren,
   option: Option,
 ): string =>
-  "range" in ch
-    ? `"${ch.file.replace(option.rootDir, "")}:${ch.name}:${
-        ch.selectionRange.line
-      }"`
-    : `"${ch.fileName.replace(option.rootDir, "")}:${ch.calledFunction}:${
-        ch.realPosition.line
-      }"`;
+  `"${ch.file.replace(option.rootDir, "")}:${ch.name}:${
+    ch.selectionRange.line
+  }"`;
 
 const callHierarchyToDotNodeLabel = (
-  ch: CallHierarchyItemWithChildren | CallSite,
+  ch: CallHierarchyItemWithChildren,
 ): string =>
-  "range" in ch
-    ? `"${ch.containerName ? ch.containerName + "." : ""}${ch.name}:${
-        ch.selectionRange.line
-      }"`
-    : `"${ch.calledFunction}:${ch.realPosition.line}"`;
+  `"${ch.containerName ? ch.containerName + "." : ""}${ch.name}:${
+    ch.selectionRange.line
+  }"`;
 
 const isNodeModules = (file: string): boolean => file.includes("node_modules");
 
@@ -86,33 +79,12 @@ const isOutputTarget = (
   return false;
 };
 
-function callsToString(
-  callSite: CallSite,
+export function callsToDotString(
   item: CallHierarchyItemWithChildren,
   option: Option,
-): string {
+): string | undefined {
   const subgraphGroupedByFiles: Map<string, string[]> = new Map();
   const callHierarchyRelations: string[] = [];
-
-  // add entry call site
-  const dotSubgraphName = callSite.fileName;
-  if (!subgraphGroupedByFiles.has(dotSubgraphName)) {
-    subgraphGroupedByFiles.set(dotSubgraphName, []);
-  }
-
-  const dotNodeName = callHierarchyToDotNodeName(callSite, option);
-  if (isOutputTarget(item, option)) {
-    subgraphGroupedByFiles
-      .get(dotSubgraphName)
-      ?.push(
-        `${dotNodeName} [shape="oval", label=${callHierarchyToDotNodeLabel(
-          callSite,
-        )}]`,
-      );
-    callHierarchyRelations.push(
-      `${dotNodeName} -> ${callHierarchyToDotNodeName(item, option)};`,
-    );
-  }
 
   // Walk through children with depth first search
   const stack: CallHierarchyItemWithChildren[] = [item];
@@ -131,7 +103,7 @@ function callsToString(
         ?.push(
           `${dotNodeName} [shape="oval", label=${callHierarchyToDotNodeLabel(
             parentNode,
-          )}]`,
+          )} class="${parentNode.id}"]`,
         );
     }
 
@@ -150,7 +122,7 @@ function callsToString(
   }
 
   // Don't output a file if callSite doesn't have call given conditions' hierarchies
-  if (!callHierarchyRelations.length) return "";
+  if (!callHierarchyRelations.length) return undefined;
 
   // assemble each parts
   const subgraphs: string[] = [];
@@ -168,23 +140,22 @@ function callsToString(
     if (nodes.length) subgraphs.push("\t\t" + nodes.join(EOL + "\t\t"));
     subgraphs.push("\t};");
   }
-  return (
-    subgraphs.join(EOL) + `${EOL}\t` + callHierarchyRelations.join(`${EOL}\t`)
+  return baseGraphWith(
+    subgraphs.join(EOL) + `${EOL}\t` + callHierarchyRelations.join(`${EOL}\t`),
   );
 }
 
 export const callHierarchyToGraphviz = async (
-  callSite: CallSite,
   ch: CallHierarchyItemWithChildren,
   option: Option,
 ): Promise<void> => {
-  const body = callsToString(callSite, ch, option);
-  if (body === "") return;
+  const body = callsToDotString(ch, option);
+  if (body === undefined) return;
   await graphviz({
     ...option,
-    outputFile: `${callSite.fileName.replace(option.rootDir, "")}#${
-      callSite.calledFunction
-    }:${callSite.realPosition.line}`,
-    body: baseGraphWith(body),
+    outputFile: `${ch.file.replace(option.rootDir, "")}#${ch.name}:${
+      ch.selectionRange.line
+    }`,
+    body,
   });
 };

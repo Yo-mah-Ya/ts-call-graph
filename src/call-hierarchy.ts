@@ -3,10 +3,13 @@ import { CallSite } from "./get-positions";
 import { EOL } from "os";
 import { Option } from "./option";
 
+type CallHierarchyItemWithId = ts.CallHierarchyItem & { id: number };
+
 export type CallHierarchyItemWithChildren = Pick<
   ts.CallHierarchyItem,
   "file" | "kind" | "kindModifiers" | "name" | "containerName"
 > & {
+  id: number; // unique number for each nodes
   range: {
     line: number;
     character: number;
@@ -29,7 +32,6 @@ const isStackOverflow = (error: unknown): boolean =>
 export class CallHierarchy {
   constructor(
     private service: ts.LanguageService,
-    private callSite: CallSite,
     private option: Option,
   ) {}
 
@@ -66,20 +68,22 @@ export class CallHierarchy {
     return sourceFile;
   };
 
-  private prepareCallHierarchy = (): ts.CallHierarchyItem | undefined => {
+  private prepareCallHierarchy = (
+    callSite: CallSite,
+  ): ts.CallHierarchyItem | undefined => {
     try {
       const res = this.service.prepareCallHierarchy(
-        this.callSite.fileName,
-        this.callSite.realPosition.pos,
+        callSite.fileName,
+        callSite.realPosition.pos,
       );
       this.logOutIf(res, "prepareCallHierarchy", {
-        fileName: this.callSite.fileName,
-        pos: this.callSite.realPosition.pos,
+        fileName: callSite.fileName,
+        pos: callSite.realPosition.pos,
       });
       return Array.isArray(res) ? res[0] : res;
     } catch (error) {
       console.error({
-        callSite: this.callSite,
+        callSite: callSite,
         error,
       });
       return undefined;
@@ -87,13 +91,14 @@ export class CallHierarchy {
   };
 
   private toCallHierarchyItemWithChildren = (
-    item: ts.CallHierarchyItem,
+    item: CallHierarchyItemWithId,
     {
       range,
       selectionRange,
     }: { range: ts.LineAndCharacter; selectionRange: ts.LineAndCharacter },
     children: CallHierarchyItemWithChildren[],
   ): CallHierarchyItemWithChildren => ({
+    id: item.id,
     file: item.file,
     kind: item.kind,
     kindModifiers: item.kindModifiers,
@@ -115,8 +120,9 @@ export class CallHierarchy {
   ): CallHierarchyItemWithChildren | undefined => {
     let result: CallHierarchyItemWithChildren | undefined = undefined;
 
+    let id = 1;
     const innerGetIncomingCalls = (
-      item: ts.CallHierarchyItem,
+      item: CallHierarchyItemWithId,
     ): CallHierarchyItemWithChildren => {
       const incomingCalls = this.service.provideCallHierarchyIncomingCalls(
         item.file,
@@ -127,7 +133,7 @@ export class CallHierarchy {
         pos: item.selectionSpan.start,
       });
       const children = incomingCalls.map((incomingCall) =>
-        innerGetIncomingCalls(incomingCall.from),
+        innerGetIncomingCalls({ ...incomingCall.from, id: ++id }),
       );
 
       const sourceFile = this.getSourceFile(item.file);
@@ -144,7 +150,7 @@ export class CallHierarchy {
     };
 
     try {
-      return innerGetIncomingCalls(item);
+      return innerGetIncomingCalls({ ...item, id });
     } catch (error) {
       console.error({
         incomingCallsItem: item,
@@ -156,12 +162,22 @@ export class CallHierarchy {
       return undefined;
     }
   };
-  public getIncomingCallHierarchy = ():
-    | CallHierarchyItemWithChildren
-    | undefined => {
-    const item = this.prepareCallHierarchy();
+  public getIncomingCallHierarchy = (
+    callSite: CallSite,
+  ): CallHierarchyItemWithChildren | undefined => {
+    const item = this.prepareCallHierarchy(callSite);
     if (!item) return undefined;
-    return this.getIncomingCalls(item);
+    const ch = this.getIncomingCalls(item);
+    if (!ch) return undefined;
+    return {
+      id: 0, // The original call site starts with index 0.
+      name: callSite.calledFunction,
+      kind: ts.ScriptElementKind.functionElement,
+      file: callSite.fileName,
+      selectionRange: callSite.realPosition,
+      range: callSite.realPosition,
+      children: [ch],
+    };
   };
 
   private getOutgoingCalls = (
@@ -169,8 +185,9 @@ export class CallHierarchy {
   ): CallHierarchyItemWithChildren | undefined => {
     let result: CallHierarchyItemWithChildren | undefined = undefined;
 
+    let id = 1;
     const innerGetOutgoingCalls = (
-      item: ts.CallHierarchyItem,
+      item: CallHierarchyItemWithId,
     ): CallHierarchyItemWithChildren => {
       const outgoingCalls = this.service.provideCallHierarchyOutgoingCalls(
         item.file,
@@ -181,7 +198,7 @@ export class CallHierarchy {
         pos: item.selectionSpan.start,
       });
       const children = outgoingCalls.map((outgoingCall) =>
-        innerGetOutgoingCalls(outgoingCall.to),
+        innerGetOutgoingCalls({ ...outgoingCall.to, id: ++id }),
       );
 
       const sourceFile = this.getSourceFile(item.file);
@@ -198,7 +215,7 @@ export class CallHierarchy {
     };
 
     try {
-      return innerGetOutgoingCalls(item);
+      return innerGetOutgoingCalls({ ...item, id });
     } catch (error) {
       console.error({
         outGoingCallsItem: item,
@@ -210,11 +227,21 @@ export class CallHierarchy {
       return undefined;
     }
   };
-  public getOutgoingCallHierarchy = ():
-    | CallHierarchyItemWithChildren
-    | undefined => {
-    const item = this.prepareCallHierarchy();
+  public getOutgoingCallHierarchy = (
+    callSite: CallSite,
+  ): CallHierarchyItemWithChildren | undefined => {
+    const item = this.prepareCallHierarchy(callSite);
     if (!item) return undefined;
-    return this.getOutgoingCalls(item);
+    const ch = this.getOutgoingCalls(item);
+    if (!ch) return undefined;
+    return {
+      id: 0, // The original call site starts with index 0.
+      name: callSite.calledFunction,
+      kind: ts.ScriptElementKind.functionElement,
+      file: callSite.fileName,
+      selectionRange: callSite.realPosition,
+      range: callSite.realPosition,
+      children: [ch],
+    };
   };
 }

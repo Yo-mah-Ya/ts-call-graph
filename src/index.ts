@@ -36,14 +36,12 @@ export const main = async (): Promise<void> => {
     },
   );
   const p: Promise<void>[] = [];
+  const callHierarchy = new CallHierarchy(languageService, option);
   for (const callSite of callSites) {
-    const callHierarchy = new CallHierarchy(
-      languageService,
-      callSite,
-      option,
-    ).getOutgoingCallHierarchy();
-    if (!callHierarchy) continue;
-    p.push(callHierarchyToGraphviz(callSite, callHierarchy, option));
+    const outgoingCallHierarchy =
+      callHierarchy.getOutgoingCallHierarchy(callSite);
+    if (!outgoingCallHierarchy) continue;
+    p.push(callHierarchyToGraphviz(outgoingCallHierarchy, option));
   }
   await Promise.all(p);
 };
