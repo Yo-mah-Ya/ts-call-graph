@@ -1,5 +1,9 @@
 import { CallHierarchyItemWithChildren } from "./call-hierarchy";
-import { callsToDotString, createBaseUrlPath } from "./gen/graphviz";
+import {
+  buildOutPutFilePathWithoutExtension,
+  callsToDotString,
+  createBaseUrlPath,
+} from "./gen/graphviz";
 import { Option } from "./option";
 import express, {
   Express,
@@ -29,7 +33,10 @@ const errorHandler: ErrorRequestHandler<unknown, string> = (
   return;
 };
 
-const graphTemplateWith = (body: string): Buffer =>
+const graphTemplateWith = (
+  outputFile: string,
+  { forBrowser, forDownload }: { forBrowser: string; forDownload: string },
+): Buffer =>
   Buffer.from(
     `
       <!DOCTYPE html>
@@ -38,25 +45,59 @@ const graphTemplateWith = (body: string): Buffer =>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Call Graph</title>
+        <style>
+        .download {
+          display: flex;
+          justify-content: flex-end;
+        }
+        .button {
+          font-size: 3rem;
+        }
+        </style>
       </head>
       <body>
         <script src="https://cdn.jsdelivr.net/npm/deepcopy@2.1.0/umd/deepcopy.min.js"></script>
+        <div class="download">
+          <button class="button">Download</button>
+        </div>
         <div id="graph"></div>
       </body>
       <script type="module">
         import { Graphviz } from "https://cdn.jsdelivr.net/npm/@hpcc-js/wasm/dist/graphviz.js";
 
         const graphviz = await Graphviz.load();
-        const dot = ` +
+        const dotForBrowser = ` +
       "`" +
-      body +
+      forBrowser +
+      "`" +
+      `;
+
+      const dotForDownload = ` +
+      "`" +
+      forDownload +
       "`" +
       `;
 
         const div = document.getElementById("graph");
         if(div){
-          div.innerHTML = graphviz.layout(dot, "svg", "dot");
+          div.innerHTML = graphviz.layout(dotForBrowser, "svg", "dot");
         };
+
+        const button = document.querySelector(".button");
+        if(button){
+          button.addEventListener('click',()=>{
+            const a = document.createElement('a');
+            if(a){
+              const blob = new Blob([
+                graphviz.layout(dotForDownload, "svg", "dot")
+              ], {type: 'text/plain'});
+              a.download = "${outputFile}";
+              a.href = URL.createObjectURL(blob);
+              a.click();
+              URL.revokeObjectURL(a.href);
+            }
+          });
+        }
       </script>
       </html>`,
   );
@@ -100,6 +141,11 @@ const createRouter = (
 
     const currentTree = deepCopy(originalTree);
 
+    const outputFile = buildOutPutFilePathWithoutExtension(
+      originalTree,
+      option,
+    );
+
     router.get<never, Buffer, never, { id?: number; file?: string }>(
       routingPath,
       (req, res) => {
@@ -124,7 +170,15 @@ const createRouter = (
               }),
             );
           }
-          res.send(graphTemplateWith(callsToDotString(currentTree, option)));
+          res.send(
+            graphTemplateWith(`${outputFile}.svg`, {
+              forBrowser: callsToDotString(currentTree, option),
+              forDownload: callsToDotString(currentTree, {
+                ...option,
+                server: false,
+              }),
+            }),
+          );
           return;
         }
         // When clicked a subgraph
@@ -154,7 +208,15 @@ const createRouter = (
           return;
         }
 
-        res.send(graphTemplateWith(callsToDotString(originalTree, option)));
+        res.send(
+          graphTemplateWith(`${outputFile}.svg`, {
+            forBrowser: callsToDotString(originalTree, option),
+            forDownload: callsToDotString(originalTree, {
+              ...option,
+              server: false,
+            }),
+          }),
+        );
       },
     );
   }

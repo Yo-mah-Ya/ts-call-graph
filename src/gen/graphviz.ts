@@ -18,19 +18,31 @@ digraph {
 }
 `;
 
-const graphviz = async ({
-  format,
-  body,
-  outputFile,
-  outDir,
-}: Option & { body: string; outputFile: string }): Promise<void> => {
-  await mkdir(`${outDir}${path.dirname(outputFile)}`, { recursive: true });
-  await writeFile(`${outDir}${outputFile}.dot`, body);
+const graphviz = async (
+  ch: CallHierarchyItemWithChildren,
+  option: Option,
+  body: string,
+): Promise<void> => {
+  const outputFile = buildOutPutFilePathWithoutExtension(ch, option);
+
+  await mkdir(`${option.outDir}${path.dirname(outputFile)}`, {
+    recursive: true,
+  });
+  await writeFile(`${option.outDir}${outputFile}.dot`, body);
   await promisify(exec)(
-    `${
-      process.platform === "win32" ? "dot.exe" : "dot"
-    } -T${format} "${outDir}${outputFile}.dot" -o "${outDir}${outputFile}.${format}"`,
+    `${process.platform === "win32" ? "dot.exe" : "dot"} -T${option.format} "${
+      option.outDir
+    }${outputFile}.dot" -o "${option.outDir}${outputFile}.${option.format}"`,
   );
+};
+
+export const buildOutPutFilePathWithoutExtension = (
+  ch: CallHierarchyItemWithChildren,
+  option: Option,
+): string => {
+  return `${ch.file.replace(option.rootDir, "")}#${ch.name}:${
+    ch.selectionRange.line
+  }`;
 };
 
 const callHierarchyToDotNodeName = (
@@ -119,11 +131,8 @@ export function callsToDotString(
             : `color="black", penwidth=1.0`
         }`,
       ];
-      if (
-        // Don't dare to try to reach to children, if it doesn't have them.
-        option.server &&
-        parentNode.hasChildren
-      ) {
+      // Don't dare to try to reach to children, if it doesn't have them.
+      if (option.server && parentNode.hasChildren) {
         attributes.push(`href="${baseUrlPath}?id=${parentNode.id}"`);
       }
 
@@ -175,11 +184,5 @@ export const callHierarchyToGraphviz = async (
 ): Promise<void> => {
   const body = callsToDotString(ch, option);
   if (body === undefined) return;
-  await graphviz({
-    ...option,
-    outputFile: `${ch.file.replace(option.rootDir, "")}#${ch.name}:${
-      ch.selectionRange.line
-    }`,
-    body,
-  });
+  await graphviz(ch, option, body);
 };
