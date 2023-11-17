@@ -3,13 +3,14 @@ import { CallSite } from "./get-positions";
 import { EOL } from "os";
 import { Option } from "./option";
 
-type CallHierarchyItemWithId = ts.CallHierarchyItem & { id: number };
+type CallHierarchyItemWithId = ts.CallHierarchyItem & {
+  id: number; // unique number for each nodes
+};
 
 export type CallHierarchyItemWithChildren = Pick<
-  ts.CallHierarchyItem,
-  "file" | "kind" | "kindModifiers" | "name" | "containerName"
+  CallHierarchyItemWithId,
+  "id" | "file" | "kind" | "kindModifiers" | "name" | "containerName"
 > & {
-  id: number; // unique number for each nodes
   range: {
     line: number;
     character: number;
