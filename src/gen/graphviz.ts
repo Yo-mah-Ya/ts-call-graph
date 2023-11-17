@@ -82,7 +82,7 @@ const isOutputTarget = (
 export function callsToDotString(
   item: CallHierarchyItemWithChildren,
   option: Option,
-): string | undefined {
+): string {
   const subgraphGroupedByFiles: Map<string, string[]> = new Map();
   const callHierarchyRelations: string[] = [];
 
@@ -120,9 +120,6 @@ export function callsToDotString(
       }
     }
   }
-
-  // Don't output a file if callSite doesn't have call given conditions' hierarchies
-  if (!callHierarchyRelations.length) return undefined;
 
   // assemble each parts
   const subgraphs: string[] = [];
