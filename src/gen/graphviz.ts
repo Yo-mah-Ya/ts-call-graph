@@ -79,15 +79,27 @@ const isOutputTarget = (
   return false;
 };
 
+export const createBaseUrlPath = (
+  ch: CallHierarchyItemWithChildren,
+  option: Option,
+): string =>
+  encodeURI(
+    `/${ch.file.replace(option.rootDir, "")}/${ch.name}/${
+      ch.selectionRange.line
+    }`,
+  );
+
 export function callsToDotString(
-  item: CallHierarchyItemWithChildren,
+  ch: CallHierarchyItemWithChildren,
   option: Option,
 ): string {
   const subgraphGroupedByFiles: Map<string, string[]> = new Map();
   const callHierarchyRelations: string[] = [];
 
+  const baseUrlPath = createBaseUrlPath(ch, option);
+
   // Walk through children with depth first search
-  const stack: CallHierarchyItemWithChildren[] = [item];
+  const stack: CallHierarchyItemWithChildren[] = [ch];
   while (stack.length) {
     const parentNode = stack.pop() as CallHierarchyItemWithChildren;
 
@@ -103,7 +115,9 @@ export function callsToDotString(
         ?.push(
           `${dotNodeName} [shape="oval", label=${callHierarchyToDotNodeLabel(
             parentNode,
-          )} class="${parentNode.id}"]`,
+          )} ${
+            option.server ? `href="${baseUrlPath}?id=${parentNode.id}"` : ""
+          }]`,
         );
     }
 
@@ -127,7 +141,9 @@ export function callsToDotString(
     subgraphs.push(`\tsubgraph "cluster_${absoluteFilePath}" {`);
     subgraphs.push(
       `\t\tlabel = "${absoluteFilePath.replace(option.rootDir, "")}"`,
-      `\t\thref = "${absoluteFilePath}"`,
+      option.server
+        ? `\t\thref = "${baseUrlPath}?file=${encodeURI(absoluteFilePath)}"`
+        : `\t\thref = "${absoluteFilePath}"`,
     );
     if (isStdLib(absoluteFilePath)) {
       subgraphs.push(`\t\tbgcolor = "#adedad"`);

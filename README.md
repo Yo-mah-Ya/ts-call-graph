@@ -12,7 +12,11 @@ Sample images are in `example` directory.
 
 ## prerequisite
 
-This package uses [graphviz](https://graphviz.org/download/) to generate call graph. It will converts `.dot` file to particular files like `.svg`, `.png` and whatnot.
+You'll need either [dot command](https://graphviz.org/download/) to generate call graph, which converts `.dot` file to particular files like `.svg`, `.png` and whatnot, or modern web browser which enables to use [hpcc-js-wasm](https://hpcc-systems.github.io/hpcc-js-wasm/).
+
+If you specify `server` parameter `true` or nothing, then you'll use a web browser to generate call graphs in SVG format.
+<br>If specified `server` parameter with `false`, then you'll use `dot` command, which is supposed to be installed in advance.
+<br>[See the server parameter details shown below.](#how-to-generate-call-graph)
 
 ## example image
 
@@ -76,6 +80,8 @@ Options:
   -d, --declaration  is include declaration           [boolean] [default: false]
   -v, --verbose      Use verbose output               [boolean] [default: false]
   -l, --line         The line number where call graph starts            [number]
+      --server       Whether you use server to render call graphs or dot
+                     command.                          [boolean] [default: true]
       --help         Show help                                         [boolean]
 ```
 

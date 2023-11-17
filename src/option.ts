@@ -14,6 +14,7 @@ export type Option = {
   verbose: boolean;
   line?: number;
   compilerOptions?: ts.CompilerOptions;
+  server: boolean;
 };
 
 export const jsonToCompilerOptions = (tsconfig: string): ts.CompilerOptions => {
@@ -136,6 +137,11 @@ export const toOptions = (): Option => {
       },
       type: "number",
     })
+    .option("server", {
+      describe: "Whether you use server to render call graphs or dot command.",
+      default: true,
+      type: "boolean",
+    })
     .help().argv as Omit<Option, "entry"> & {
     _: string[];
     tsconfig?: { compilerOptions: ts.CompilerOptions };
@@ -156,6 +162,7 @@ export const toOptions = (): Option => {
     verbose: argv.verbose,
     line: argv.line,
     compilerOptions: argv.tsconfig?.compilerOptions,
+    server: argv.server,
   };
   if (option.verbose) {
     console.log("passed option");
